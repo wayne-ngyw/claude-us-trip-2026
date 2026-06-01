@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US Road Trip 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sand:#F5F0E8;--sand-dark:#EDE6D6;
+  --navy:#1B2A4A;--navy-light:#2D4070;
+  --gold:#C8973A;--gold-light:#F0C060;
+  --sage:#5A7A5E;--text:#1B2A4A;--muted:#6B7A8D;
+  --white:#FFFFFF;--border:rgba(27,42,74,0.09);
+  --sidebar:270px;--radius:9px;
+}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--sand);color:var(--text)}
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar);min-width:var(--sidebar);background:var(--navy);display:flex;flex-direction:column;overflow:hidden;z-index:10}
+.sb-header{padding:18px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.07);flex-shrink:0}
+.sb-eyebrow{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.sb-title{font-family:'DM Serif Display',serif;font-size:19px;color:#fff;line-height:1.2;cursor:pointer}
+.sb-sub{font-size:10px;color:rgba(255,255,255,0.35);margin-top:3px}
+.sb-flights{display:flex;flex-direction:column;gap:4px;margin-top:9px}
+.sb-badge{font-size:10px;font-weight:600;padding:4px 9px;border-radius:5px;background:rgba(200,151,58,0.14);color:var(--gold-light);border:1px solid rgba(200,151,58,0.22);letter-spacing:.04em}
+.sb-countdown{margin:8px 12px 0;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:8px 12px;flex-shrink:0;display:flex;justify-content:space-between;align-items:center}
+.sb-cd-label{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.32)}
+.sb-cd-num{font-family:'DM Serif Display',serif;font-size:22px;color:var(--gold-light)}
+.sb-nav{flex:1;overflow-y:auto;padding:8px 8px 20px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.07) transparent}
+.sb-nav::-webkit-scrollbar{width:3px}
+.sb-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:2px}
+.day-card{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;cursor:pointer;transition:all .14s ease;margin-bottom:1px;border:1px solid transparent}
+.day-card:hover{background:rgba(255,255,255,0.05)}
+.day-card.active{background:var(--gold);border-color:rgba(200,151,58,0.5)}
+.dc-num{font-size:9px;font-weight:700;color:rgba(255,255,255,0.25);min-width:16px;letter-spacing:.05em}
+.dc-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.15);flex-shrink:0}
+.dc-info{flex:1;min-width:0}
+.dc-date{font-size:10px;color:rgba(255,255,255,0.35);font-weight:500}
+.dc-city{font-size:12px;font-weight:600;color:#fff;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc-route{font-size:9px;color:rgba(255,255,255,0.26);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.day-card.active .dc-num,.day-card.active .dc-date,.day-card.active .dc-route{color:rgba(27,42,74,0.5)}
+.day-card.active .dc-city{color:var(--navy)}
+.day-card.active .dc-dot{background:rgba(27,42,74,0.3)}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:11px 20px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0}
+.tb-heading{font-family:'DM Serif Display',serif;font-size:16px;color:var(--navy)}
+.tb-meta{font-size:11px;color:var(--muted);margin-top:1px}
+.btn-share{background:var(--navy);color:#fff;border:none;border-radius:6px;padding:6px 13px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.05em;transition:background .14s;flex-shrink:0}
+.btn-share:hover{background:var(--navy-light)}
+.map-wrap{position:relative;flex-shrink:0;height:220px;border-bottom:1px solid var(--border)}
+#map{position:absolute;top:0;left:0;right:0;bottom:0}
+.map-pill{position:absolute;top:9px;right:9px;z-index:400;background:rgba(255,255,255,0.96);border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);box-shadow:0 2px 8px rgba(0,0,0,.08);pointer-events:none}
+.details{flex:1;overflow-y:auto;padding:16px 20px 36px;scrollbar-width:thin;scrollbar-color:rgba(27,42,74,0.08) transparent}
+.details::-webkit-scrollbar{width:4px}
+.details::-webkit-scrollbar-thumb{background:rgba(27,42,74,0.08);border-radius:2px}
+
+/* ── OVERVIEW ── */
+.ov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.stat-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.stat-label{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.stat-val{font-family:'DM Serif Display',serif;font-size:26px;color:var(--navy);line-height:1}
+.stat-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.flight-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.flight-card{background:var(--navy);border-radius:var(--radius);padding:12px 14px;color:#fff}
+.fc-num{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--gold-light);margin-bottom:4px}
+.fc-route{font-family:'DM Serif Display',serif;font-size:16px}
+.fc-times{font-size:10px;color:rgba(255,255,255,0.42);margin-top:2px}
+.route-chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:14px}
+.chip{font-size:10px;font-weight:600;padding:4px 10px;border-radius:20px}
+.chip-dark{background:var(--navy);color:#fff}
+.chip-light{background:var(--sand-dark);color:var(--navy)}
+.arrow-sep{font-size:10px;color:var(--muted)}
+.sec-head{font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+
+/* ── TIMELINE ── */
+.timeline{display:flex;flex-direction:column;gap:0;margin-bottom:16px}
+.tl-row{display:flex;gap:10px}
+.tl-left{display:flex;flex-direction:column;align-items:center;width:46px;flex-shrink:0}
+.tl-time{font-size:10px;font-weight:700;color:var(--gold);text-align:center;padding-top:12px;line-height:1;white-space:nowrap}
+.tl-spine{display:flex;flex-direction:column;align-items:center;margin-top:4px;flex:1}
+.tl-dot{width:7px;height:7px;border-radius:50%;background:var(--navy);border:2px solid var(--white);box-shadow:0 0 0 1.5px var(--navy);flex-shrink:0}
+.tl-line{width:1px;flex:1;background:var(--border);min-height:8px;margin-top:3px}
+.tl-row:last-child .tl-line{display:none}
+.tl-body{flex:1;padding-bottom:9px;min-width:0}
+
+/* ── ACTIVITY CARD — horizontal thumbnail ── */
+.act-card{display:flex;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:box-shadow .15s}
+.act-card:hover{box-shadow:0 3px 14px rgba(27,42,74,0.09)}
+.act-thumb{width:120px;min-width:120px;position:relative;overflow:hidden;background:var(--sand-dark);flex-shrink:0}
+.act-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;display:block;transition:transform .4s ease}
+.act-card:hover .act-thumb img{transform:scale(1.06)}
+.act-content{flex:1;padding:11px 13px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.act-event{font-size:12px;font-weight:700;color:var(--navy);line-height:1.3;margin-bottom:3px}
+.act-tip{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:7px}
+.act-actions{display:flex;gap:5px;flex-wrap:wrap}
+.tl-btn{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:4px 9px;border-radius:4px;text-decoration:none;transition:all .13s;border:1px solid}
+.btn-nav-plain{background:rgba(200,151,58,0.08);color:var(--gold);border-color:rgba(200,151,58,0.3)}
+.btn-nav-plain:hover{background:rgba(200,151,58,0.2);border-color:var(--gold)}
+
+/* ── RESTAURANT CARDS — compact rows ── */
+.rest-grid{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.rest-card{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:9px 12px;display:flex;align-items:flex-start;gap:10px;transition:box-shadow .14s}
+.rest-card:hover{box-shadow:0 2px 10px rgba(27,42,74,0.08)}
+.meal-badge{font-size:8px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:3px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;margin-top:2px}
+.mb-breakfast,.mb-brunch{background:rgba(200,120,40,0.12);color:#A0621A}
+.mb-lunch{background:rgba(90,122,94,0.12);color:var(--sage)}
+.mb-dinner{background:rgba(27,42,74,0.09);color:var(--navy)}
+.mb-drinks{background:rgba(100,80,160,0.1);color:#6450A0}
+.mb-snack{background:rgba(107,122,141,0.1);color:var(--muted)}
+.mb-airport,.mb-skip,.mb-other{background:var(--sand-dark);color:var(--muted)}
+.rest-info{flex:1;min-width:0}
+.rest-name{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px}
+.rest-desc{font-size:11px;color:var(--muted);line-height:1.45}
+.rest-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;padding-top:1px}
+.rest-price{font-size:10px;color:var(--sage);font-weight:700;white-space:nowrap}
+.btn-rest-nav{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:3px 8px;border-radius:4px;text-decoration:none;background:rgba(27,42,74,0.06);color:var(--navy);border:1px solid rgba(27,42,74,0.1);transition:all .13s;white-space:nowrap}
+.btn-rest-nav:hover{background:rgba(27,42,74,0.12)}
+
+/* ── HOTEL & NOTES ── */
+.hotel-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:11px 13px;display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+.hotel-ico{width:32px;height:32px;background:var(--sand-dark);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.hotel-name{font-size:12px;font-weight:600;color:var(--navy)}
+.hotel-addr{font-size:10px;color:var(--muted);margin-top:2px}
+.hotel-pills{display:flex;gap:5px;margin-top:5px}
+.h-pill{font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px}
+.pill-drive{background:rgba(90,122,94,0.1);color:var(--sage)}
+.day-notes{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-light) 100%);border-radius:var(--radius);padding:11px 13px;color:rgba(255,255,255,0.62);font-size:11px;font-style:italic;line-height:1.6;display:flex;gap:9px;align-items:flex-start}
+.notes-ico{font-size:14px;flex-shrink:0;opacity:.45;padding-top:1px}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(27,42,74,0.5);z-index:9999;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--white);border-radius:12px;padding:24px 26px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(27,42,74,0.18)}
+.modal-title{font-family:'DM Serif Display',serif;font-size:18px;color:var(--navy);margin-bottom:4px}
+.modal-sub{font-size:11px;color:var(--muted);margin-bottom:16px}
+.modal-steps{display:flex;flex-direction:column;gap:10px}
+.m-step{display:flex;gap:10px;align-items:flex-start}
+.m-num{width:21px;height:21px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.m-text{font-size:11px;color:var(--text);line-height:1.55}
+.m-text code{background:var(--sand);padding:1px 5px;border-radius:3px;font-size:10px}
+.modal-close{margin-top:16px;width:100%;background:var(--navy);color:#fff;border:none;border-radius:7px;padding:9px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer}
+
+/* ── MOBILE ── */
+.mob-header{display:none;background:var(--navy);padding:12px 14px 8px;flex-shrink:0}
+.mob-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.mob-title{font-family:'DM Serif Display',serif;font-size:16px;color:#fff}
+.mob-sub{font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:.1em;text-transform:uppercase}
+.mob-cd{font-family:'DM Serif Display',serif;font-size:17px;color:var(--gold-light);text-align:right}
+.mob-cd-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,0.3);text-align:right}
+.mob-strip{display:flex;overflow-x:auto;gap:5px;padding-bottom:4px;scrollbar-width:none}
+.mob-strip::-webkit-scrollbar{display:none}
+.mob-card{display:flex;flex-direction:column;align-items:center;justify-content:center;width:64px;min-width:64px;height:56px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);cursor:pointer;transition:all .13s;padding:4px;text-align:center;flex-shrink:0}
+.mob-card:hover{background:rgba(255,255,255,0.07)}
+.mob-card.active{background:var(--gold);border-color:var(--gold)}
+.mc-num{font-size:8px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.05em}
+.mc-city{font-size:11px;font-weight:700;color:#fff;line-height:1.2;margin-top:2px}
+.mc-date{font-size:8px;color:rgba(255,255,255,0.3)}
+.mob-card.active .mc-num,.mob-card.active .mc-date{color:rgba(27,42,74,0.48)}
+.mob-card.active .mc-city{color:var(--navy)}
+@media(max-width:767px){
+  .sidebar{display:none}.app{flex-direction:column}.mob-header{display:block}
+  .map-wrap{height:180px}.ov-grid{grid-template-columns:1fr 1fr}
+  .flight-grid{grid-template-columns:1fr}.top-bar{padding:8px 14px}
+  .details{padding:12px 14px 28px}
+  .act-thumb{width:90px;min-width:90px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="mob-header" id="mobHeader">
+    <div class="mob-top">
+      <div><div class="mob-sub">Jun 17 – Jul 3, 2026</div><div class="mob-title">West Coast Road Trip</div></div>
+      <div><div class="mob-cd-lbl">Days to go</div><div class="mob-cd" id="mobCd">—</div></div>
+    </div>
+    <div class="mob-strip" id="mobStrip"></div>
+  </div>
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-eyebrow">Jun 17 – Jul 3 · 2026</div>
+      <div class="sb-title" id="sbTitle">West Coast<br>Road Trip</div>
+      <div class="sb-sub">17 days · SFO → LAX · Avis</div>
+      <div class="sb-flights">
+        <span class="sb-badge">✈ CX 872 · HKG → SFO · Arr 23:45</span>
+        <span class="sb-badge">✈ CX 881 · LAX → HKG · Dep 23:55</span>
+      </div>
+    </div>
+    <div class="sb-countdown">
+      <div class="sb-cd-label">Days to departure</div>
+      <div class="sb-cd-num" id="deskCd">—</div>
+    </div>
+    <div class="sb-nav" id="sbNav"></div>
+  </aside>
+  <div class="main">
+    <div class="top-bar">
+      <div>
+        <div class="tb-heading" id="topHead">Trip Overview</div>
+        <div class="tb-meta" id="topMeta">Select a day to view the full itinerary</div>
+      </div>
+      <button class="btn-share" onclick="document.getElementById('shareModal').classList.add('open')">↗ Share</button>
+    </div>
+    <div class="map-wrap"><div id="map"></div><div class="map-pill" id="mapPill">Full Route</div></div>
+    <div class="details" id="details"></div>
+  </div>
+</div>
+<div class="modal-bg" id="shareModal">
+  <div class="modal">
+    <div class="modal-title">Share this Dashboard</div>
+    <div class="modal-sub">Open on any device — no server needed</div>
+    <div class="modal-steps">
+      <div class="m-step"><div class="m-num">1</div><div class="m-text">Save <code>index.html</code> to Google Drive, iCloud, or Dropbox.</div></div>
+      <div class="m-step"><div class="m-num">2</div><div class="m-text">Desktop: drag into Chrome/Firefox, or <code>File → Open</code>.</div></div>
+      <div class="m-step"><div class="m-num">3</div><div class="m-text">iPhone/iPad: save to Files app and open in Safari. Works offline (map tiles need internet).</div></div>
+      <div class="m-step"><div class="m-num">4</div><div class="m-text">Hosted on GitHub Pages? Just share the URL — opens instantly in any browser.</div></div>
+    </div>
+    <button class="modal-close" onclick="document.getElementById('shareModal').classList.remove('open')">Close</button>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const WC = "https://upload.wikimedia.org/wikipedia/commons/thumb/";
+
+const itinerary = [
+  { day:1, date:"Jun 17", city:"SFO", route:"Arrival",
+    coords:[[37.6213,-122.3790],[37.8368,-122.2907]],
+    schedule:[
+      {time:"23:45",event:"Touchdown at SFO (CX 872)",tip:"Head straight to Avis — have booking reference ready. Rental car facility is connected to terminals by AirTrain.",img:WC+"a/a5/SFO_Aerial_March_2019.jpg/1280px-SFO_Aerial_March_2019.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=SFO+Airport"},
+      {time:"00:15",event:"Avis Rental Car Pickup",tip:"Check for pre-existing dents under the lot lights before driving away. Take photos on your phone.",img:WC+"7/73/San_Francisco_International_Airport%2C_Rental_Car_Center_%28cropped%29.jpg/1280px-San_Francisco_International_Airport%2C_Rental_Car_Center_%28cropped%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Avis+Rent+A+Car+SFO"},
+      {time:"01:00",event:"Check-in Four Points by Sheraton, Emeryville",tip:"Parking is plentiful at this hour. Keep car keys safe — big drive days start soon.",img:WC+"7/7e/Bay_Bridge_from_Emeryville%2C_2018.jpg/1280px-Bay_Bridge_from_Emeryville%2C_2018.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Four+Points+by+Sheraton+SF+Bay+Bridge"}
+    ],
+    restaurants:[
+      {meal:"Skip",name:"Sleep first!",desc:"Late midnight landing — grab airport snacks and head straight to bed.",price:"",link:""},
+      {meal:"Breakfast",name:"Emeryville Public Market",desc:"Casual food hall near hotel. Great first SF morning coffee and pastry.",price:"$ · 5959 Shellmound St",link:"https://www.google.com/maps/dir/?api=1&destination=Emeryville+Public+Market"}
+    ],
+    hotel:"Four Points by Sheraton SF Bay Bridge",address:"1603 Powell St, Emeryville, CA 94608",drive:"25 min",notes:"Late arrival. Sleep in tomorrow — you've earned it after the long Cathay Pacific flight."},
+
+  { day:2, date:"Jun 18", city:"SF", route:"Local & Chill",
+    coords:[[37.8368,-122.2907],[37.7954,-122.3942],[37.7599,-122.4271],[37.7544,-122.4476]],
+    schedule:[
+      {time:"10:30",event:"Ferry Building Farmers Market",tip:"Blue Bottle Coffee and Acme Bread pastries. Great Bay Bridge views. Market is vibrant on weekday mornings.",img:WC+"5/5e/Ferry_Building%2C_San_Francisco.jpg/1280px-Ferry_Building%2C_San_Francisco.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Ferry+Building+San+Francisco"},
+      {time:"13:00",event:"Mission District Mural Walk",tip:"Clarion Alley is the best stretch for street art. Stop for a Mission-style burrito on 24th St.",img:WC+"6/6e/Clarion_Alley_murals%2C_San_Francisco_%2814714570832%29.jpg/1280px-Clarion_Alley_murals%2C_San_Francisco_%2814714570832%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Clarion+Alley+San+Francisco"},
+      {time:"15:30",event:"Dolores Park",tip:"Relax on the grass. Great SF skyline views from the upper terrace. Very local crowd.",img:WC+"3/35/Dolores_Park_grass_SF.jpg/1280px-Dolores_Park_grass_SF.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Mission+Dolores+Park"},
+      {time:"18:00",event:"Twin Peaks Sunset",tip:"Drive up for a 360° panorama. Bring a jacket — cold and very windy up here.",img:WC+"b/b6/San_Francisco_from_Twin_Peaks_February_2019_panorama.jpg/1280px-San_Francisco_from_Twin_Peaks_February_2019_panorama.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Twin+Peaks+San+Francisco"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Tartine Manufactory",desc:"World-famous SF bakery in the Mission. Get there early — morning buns sell out fast.",price:"$$ · 595 Alabama St",link:"https://www.google.com/maps/dir/?api=1&destination=Tartine+Manufactory+San+Francisco"},
+      {meal:"Lunch",name:"La Taqueria",desc:"Arguably SF's best burrito — no rice, just meat, beans and salsa. Cash preferred.",price:"$ · 2889 Mission St",link:"https://www.google.com/maps/dir/?api=1&destination=La+Taqueria+San+Francisco"},
+      {meal:"Lunch Alt",name:"Tacolicious",desc:"Award-winning tacos with great margaritas. Lively outdoor seating on Valencia St.",price:"$$ · 741 Valencia St",link:"https://www.google.com/maps/dir/?api=1&destination=Tacolicious+San+Francisco"},
+      {meal:"Dinner",name:"Nopa",desc:"Organic California cuisine, wood-fired oven. Lively neighbourhood spot. Book ahead.",price:"$$$ · 560 Divisadero St",link:"https://www.google.com/maps/dir/?api=1&destination=Nopa+San+Francisco"},
+      {meal:"Dinner Alt",name:"Flour + Water",desc:"Handmade pasta and wood-fired pizza in the Mission. Intimate, exceptional quality.",price:"$$$ · 2401 Harrison St",link:"https://www.google.com/maps/dir/?api=1&destination=Flour+Water+San+Francisco"},
+      {meal:"Drinks",name:"ABV Bar",desc:"One of SF's best craft cocktail programmes on Mission St.",price:"$$ · 3174 16th St",link:"https://www.google.com/maps/dir/?api=1&destination=ABV+Bar+San+Francisco"}
+    ],
+    hotel:"Four Points by Sheraton SF Bay Bridge",address:"1603 Powell St, Emeryville, CA 94608",drive:"Local",notes:"A slow-paced intro to SF neighbourhood culture. Enjoy the local vibe before the busier sightseeing days."},
+
+  { day:3, date:"Jun 19", city:"SF", route:"The Icons",
+    coords:[[37.8199,-122.4783],[37.8024,-122.4058],[37.8080,-122.4177],[37.8267,-122.4230]],
+    schedule:[
+      {time:"08:30",event:"Golden Gate Bridge Walk",tip:"Park at the Welcome Center or Battery East. Walk halfway across — the mid-span views are unbeatable.",img:WC+"0/0c/GoldenGateBridge-001.jpg/1280px-GoldenGateBridge-001.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Golden+Gate+Bridge+Welcome+Center"},
+      {time:"10:45",event:"⚑ Arrive Pier 33 — Alcatraz Check-in",tip:"FERRY DEPARTS 11:00 — Be here by 10:45 to check in and board. Don't be late!",img:WC+"3/35/Pier_33_Alcatraz_Landing_2012.jpg/1280px-Pier_33_Alcatraz_Landing_2012.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Pier+33+Alcatraz+Landing+San+Francisco"},
+      {time:"11:00",event:"Alcatraz Island Tour (pre-booked)",tip:"Audio tour is the unmissable highlight. Start with the cellhouse tour. Allow 2.5–3 hours total on the island.",img:WC+"9/9c/Alcatraz_island_prison_%28cropped%29.jpg/1280px-Alcatraz_island_prison_%28cropped%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Alcatraz+Island"},
+      {time:"14:30",event:"Pier 39 & Sea Lions",tip:"Quick stroll to see the sea lions on K-Dock. Skip eating here — very overpriced.",img:WC+"7/7b/Pier_39_sea_lions_MC.jpg/1280px-Pier_39_sea_lions_MC.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Pier+39+San+Francisco"},
+      {time:"17:00",event:"Lombard Street",tip:"Drive down the crookedest street in early evening when crowds thin. One block, very memorable.",img:WC+"d/d5/Lombard_Street%2C_San_Francisco.jpg/1280px-Lombard_Street%2C_San_Francisco.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Lombard+Street+San+Francisco"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Mama's on Washington Square",desc:"SF institution for pancakes and French toast. Worth the queue every time.",price:"$$ · 1701 Stockton St",link:"https://www.google.com/maps/dir/?api=1&destination=Mama%27s+Washington+Square+San+Francisco"},
+      {meal:"Breakfast Alt",name:"Caffe Trieste, North Beach",desc:"North Beach institution since 1956. Espresso and a pastry before the Golden Gate walk.",price:"$ · 601 Vallejo St",link:"https://www.google.com/maps/dir/?api=1&destination=Caffe+Trieste+San+Francisco"},
+      {meal:"Lunch",name:"Boudin Sourdough, Fisherman's Wharf",desc:"Sourdough bread bowls with clam chowder — a SF classic right near the ferry terminal.",price:"$$ · 160 Jefferson St",link:"https://www.google.com/maps/dir/?api=1&destination=Boudin+Bakery+Fishermans+Wharf"},
+      {meal:"Lunch Alt",name:"Hog Island Oyster Co.",desc:"Ferry Building oyster bar — one of the best in the city. Great for a lighter lunch.",price:"$$$ · Ferry Building",link:"https://www.google.com/maps/dir/?api=1&destination=Hog+Island+Oyster+Ferry+Building"},
+      {meal:"Dinner",name:"Tony's Pizza Napoletana",desc:"Award-winning Neapolitan pizza in North Beach. One of the best pizzas in the US.",price:"$$ · 1570 Stockton St",link:"https://www.google.com/maps/dir/?api=1&destination=Tony%27s+Pizza+Napoletana+San+Francisco"},
+      {meal:"Dinner Alt",name:"Cotogna, Jackson Square",desc:"Rustic Italian, wood-roasted meats and pastas. Intimate atmosphere.",price:"$$$ · 490 Pacific Ave",link:"https://www.google.com/maps/dir/?api=1&destination=Cotogna+San+Francisco"}
+    ],
+    hotel:"Four Points by Sheraton SF Bay Bridge",address:"1603 Powell St, Emeryville, CA 94608",drive:"Local",notes:"Busy day — wear comfortable shoes. Don't rush Alcatraz. The audio tour alone takes 90 mins."},
+
+  { day:4, date:"Jun 20", city:"Yosemite", route:"SF ➔ Yosemite",
+    coords:[[37.8368,-122.2907],[38.0381,-120.5074],[37.8799,-120.4360],[37.6749,-119.7825]],
+    schedule:[
+      {time:"09:00",event:"Depart SF / Emeryville",tip:"Final walk-around the Avis car. Fill the tank before leaving Bay Area — cheaper here than in the hills.",img:WC+"5/58/Bay_Bridge_from_Treasure_Island.jpg/1280px-Bay_Bridge_from_Treasure_Island.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Oakdale+California"},
+      {time:"11:30",event:"Oakdale Grocery Stop",tip:"Last major supermarket before Yosemite. Stock up on water, trail mix and easy hike snacks.",img:"",link:"https://www.google.com/maps/dir/?api=1&destination=Oakdale+California"},
+      {time:"13:30",event:"Ironstone Vineyards, Murphys",tip:"Beautiful Gold Country estate winery. Stroll the grounds, stretch your legs, and grab lunch at the deli.",img:WC+"e/e0/Murphys%2C_California.jpg/1280px-Murphys%2C_California.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Ironstone+Vineyards+Murphys"},
+      {time:"17:30",event:"Valley View Lookout — Arrival",tip:"Stop here right as you enter Yosemite Valley. Classic framing of El Capitan and Bridalveil Fall at golden hour.",img:WC+"1/13/Tunnel_View%2C_Yosemite_Valley%2C_California_%282%29.jpg/1280px-Tunnel_View%2C_Yosemite_Valley%2C_California_%282%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Valley+View+Yosemite"},
+      {time:"18:30",event:"Check-in Yosemite View Lodge",tip:"Lodge sits right on the Merced River. Grab supplies from the small camp store for tomorrow's early hike.",img:WC+"6/6b/Merced_River%2C_Yosemite_National_Park.jpg/1280px-Merced_River%2C_Yosemite_National_Park.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Yosemite+View+Lodge"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Hotel or grab-and-go",desc:"Eat before departure or grab a coffee in Emeryville to take on the road.",price:"$ · Emeryville",link:""},
+      {meal:"Lunch",name:"Ironstone Vineyards Deli",desc:"Artisan sandwiches and charcuterie on the vineyard grounds. Perfect mid-drive stop.",price:"$$ · Murphy's, CA",link:"https://www.google.com/maps/dir/?api=1&destination=Ironstone+Vineyards+Murphys"},
+      {meal:"Lunch Alt",name:"Grounds Restaurant, Murphys",desc:"Charming patio café in Murphys village. Excellent sandwiches and local wines.",price:"$$ · 402 Main St, Murphys",link:"https://www.google.com/maps/dir/?api=1&destination=Grounds+Restaurant+Murphys+CA"},
+      {meal:"Dinner",name:"The Pizza Factory, El Portal",desc:"Casual pizza and pasta right near the lodge. Perfect after a 4.5-hour drive.",price:"$ · 9908 CA-140, El Portal",link:"https://www.google.com/maps/dir/?api=1&destination=Pizza+Factory+El+Portal"},
+      {meal:"Dinner Alt",name:"Cedar Lodge Restaurant",desc:"Warm sit-down near El Portal. Good burgers, trout dishes and cold beer.",price:"$$ · 9966 CA-140, El Portal",link:"https://www.google.com/maps/dir/?api=1&destination=Cedar+Lodge+El+Portal+Yosemite"}
+    ],
+    hotel:"Yosemite View Lodge",address:"11136 CA-140, El Portal, CA 95318",drive:"4.5 hrs",notes:"Scenic Gold Country drive. Take it easy — the big hiking days start tomorrow."},
+
+  { day:5, date:"Jun 21", city:"Yosemite", route:"Valley Classics",
+    coords:[[37.6749,-119.7825],[37.7342,-119.5668],[37.7456,-119.5936],[37.7167,-119.6782]],
+    schedule:[
+      {time:"07:30",event:"Mist Trail — Vernal Fall",tip:"3km round trip to footbridge. Moderate uphill. Start early to beat crowds and afternoon heat.",img:WC+"8/8f/Vernal_Fall_with_Rainbow_%2815527105066%29.jpg/1280px-Vernal_Fall_with_Rainbow_%2815527105066%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Mist+Trail+Trailhead+Yosemite"},
+      {time:"10:30",event:"Lower Yosemite Fall Loop",tip:"1.6km flat loop. Incredibly loud and powerful in June snowmelt season. Easy and spectacular.",img:WC+"9/94/Yosemite_falls.jpg/1024px-Yosemite_falls.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Lower+Yosemite+Fall+Trailhead"},
+      {time:"13:00",event:"Sentinel Bridge — Half Dome Reflection",tip:"The classic Half Dome reflection photo. Flat walk. Bring your camera — unmissable shot.",img:WC+"b/be/Half_Dome_from_Sentinel_Bridge.jpg/1280px-Half_Dome_from_Sentinel_Bridge.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Sentinel+Bridge+Yosemite"},
+      {time:"16:00",event:"Tunnel View Overlook",tip:"Most photographed viewpoint in the park. El Capitan, Half Dome, Bridalveil — all in one frame.",img:WC+"1/13/Tunnel_View%2C_Yosemite_Valley%2C_California_%282%29.jpg/1280px-Tunnel_View%2C_Yosemite_Valley%2C_California_%282%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Tunnel+View+Yosemite"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Village Grill Deck",desc:"Grab-and-go breakfast sandwiches in Yosemite Village before the early trail start.",price:"$ · Yosemite Village",link:"https://www.google.com/maps/dir/?api=1&destination=Village+Grill+Yosemite"},
+      {meal:"Lunch",name:"Degnan's Kitchen",desc:"Counter-service pizzas and sandwiches in the Village. Convenient mid-hike refuel.",price:"$ · Yosemite Village",link:"https://www.google.com/maps/dir/?api=1&destination=Degnans+Kitchen+Yosemite"},
+      {meal:"Lunch Alt",name:"Valley Lodge Food Court",desc:"More variety — burgers, salads, hot dishes. Air-conditioned and welcome break.",price:"$ · Yosemite Valley Lodge",link:"https://www.google.com/maps/dir/?api=1&destination=Yosemite+Valley+Lodge"},
+      {meal:"Dinner",name:"Yosemite Valley Lodge Bar & Grill",desc:"Relaxed bar food and Valley views. Cold beers, burgers and live music some evenings.",price:"$$ · Yosemite Valley Lodge",link:"https://www.google.com/maps/dir/?api=1&destination=Yosemite+Valley+Lodge+Bar"},
+      {meal:"Dinner Alt",name:"The Ahwahnee Dining Room",desc:"Historic grand dining room. Worth dressing up for — one of the most beautiful rooms in America.",price:"$$$$ · The Ahwahnee Hotel",link:"https://www.google.com/maps/dir/?api=1&destination=Ahwahnee+Hotel+Yosemite"}
+    ],
+    hotel:"Yosemite View Lodge",address:"11136 CA-140, El Portal, CA 95318",drive:"Local",notes:"Start very early — car parks fill by 9am in summer. One of the most iconic Valley days possible."},
+
+  { day:6, date:"Jun 22", city:"Yosemite", route:"High Country",
+    coords:[[37.6749,-119.7825],[37.7123,-119.5865],[37.7278,-119.5734],[37.5134,-119.6105]],
+    schedule:[
+      {time:"08:30",event:"Sentinel Dome & Taft Point Loop",tip:"8km loop, moderate difficulty. Best 360° view of Half Dome and El Capitan together in the park.",img:WC+"d/d5/Half_Dome_from_Sentinel_Dome_2013.jpg/1280px-Half_Dome_from_Sentinel_Dome_2013.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Sentinel+Dome+Taft+Point+Trailhead"},
+      {time:"13:00",event:"Glacier Point Overlook",tip:"Drive-up viewpoint — spectacular aerial view of the entire Valley floor below.",img:WC+"a/a5/Glacier_Point_Overlook_1.jpg/1280px-Glacier_Point_Overlook_1.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Glacier+Point+Yosemite"},
+      {time:"15:30",event:"Mariposa Grove — Giant Sequoias",tip:"Grizzly Giant Loop 3.2km, mostly flat and shaded. The ancient trees are jaw-dropping in scale.",img:WC+"3/30/Grizzly_Giant_Mariposa_Grove_2010.jpg/1024px-Grizzly_Giant_Mariposa_Grove_2010.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Mariposa+Grove+Welcome+Center+Yosemite"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Pack your own",desc:"Grab supplies from the camp store the night before. Early start needed.",price:"$ · Self-catered",link:""},
+      {meal:"Lunch",name:"Glacier Point Snack Stand",desc:"Basic wraps and drinks at the overlook. Fine for a refuel with the Valley below.",price:"$ · Glacier Point",link:"https://www.google.com/maps/dir/?api=1&destination=Glacier+Point+Yosemite"},
+      {meal:"Lunch Alt",name:"Wawona Hotel Dining Room",desc:"Near Mariposa Grove — California cuisine in a beautiful Victorian-era lodge setting.",price:"$$ · Wawona Hotel",link:"https://www.google.com/maps/dir/?api=1&destination=Wawona+Hotel+Yosemite"},
+      {meal:"Dinner",name:"El Portal Market & Café",desc:"Low-key diner near the lodge. Good burgers and Mexican dishes.",price:"$ · El Portal, CA",link:"https://www.google.com/maps/dir/?api=1&destination=El+Portal+Market+Cafe"},
+      {meal:"Dinner Alt",name:"Pizza Factory, El Portal",desc:"Reliable and cheap. Great after a long hiking day in the high country.",price:"$ · 9908 CA-140, El Portal",link:"https://www.google.com/maps/dir/?api=1&destination=Pizza+Factory+El+Portal"}
+    ],
+    hotel:"Yosemite View Lodge",address:"11136 CA-140, El Portal, CA 95318",drive:"Local",notes:"High elevation — drink extra water. The Sentinel Dome views are the undisputed highlight of the Yosemite stay."},
+
+  { day:7, date:"Jun 23", city:"Lone Pine", route:"Tioga Crossing",
+    coords:[[37.6749,-119.7825],[37.8736,-119.3622],[37.9174,-119.1670],[37.7576,-118.8718],[36.6060,-118.0618]],
+    schedule:[
+      {time:"08:00",event:"Tioga Pass Road — Olmsted Point",tip:"High-altitude drive over 3,031m. Olmsted Point gives a unique rear view of Half Dome you don't see from the Valley.",img:WC+"7/7a/Half_Dome_from_Olmsted_Point_2010.jpg/1280px-Half_Dome_from_Olmsted_Point_2010.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Olmsted+Point+Yosemite"},
+      {time:"10:30",event:"Tuolumne Meadows",tip:"Flat subalpine meadow at 2,621m. Walk to Soda Springs — a perfect legs-stretch and total contrast to the Valley.",img:WC+"3/34/Tuolumne_Meadows%2C_Yosemite_National_Park_%281%29.jpg/1280px-Tuolumne_Meadows%2C_Yosemite_National_Park_%281%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Tuolumne+Meadows+Yosemite"},
+      {time:"13:00",event:"Mono Lake South Tufa",tip:"Alien limestone towers rising from the alkaline lake. Completely unlike anywhere else on Earth.",img:WC+"6/62/Mono_lake_tufas.jpg/1280px-Mono_lake_tufas.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Mono+Lake+South+Tufa+Area"},
+      {time:"17:00",event:"Alabama Hills & Mobius Arch",tip:"Mobius Arch frames Mt Whitney perfectly in the background. Classic Western film location. Easy flat walk.",img:WC+"4/4e/Mobius_Arch%2C_Alabama_Hills%2C_CA_9-10_%285765640919%29.jpg/1280px-Mobius_Arch%2C_Alabama_Hills%2C_CA_9-10_%285765640919%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Mobius+Arch+Trailhead"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Tuolumne Meadows Grill",desc:"Pancakes and eggs inside the park before the big drive east.",price:"$ · Tuolumne Meadows",link:"https://www.google.com/maps/dir/?api=1&destination=Tuolumne+Meadows+Grill+Yosemite"},
+      {meal:"Lunch",name:"Whoa Nellie Deli, Lee Vining",desc:"Cult favourite inside a gas station. Surprisingly incredible food — fish tacos and fresh specials.",price:"$$ · Tioga Gas Mart, Lee Vining",link:"https://www.google.com/maps/dir/?api=1&destination=Whoa+Nellie+Deli+Lee+Vining"},
+      {meal:"Lunch Alt",name:"Nicely's Restaurant, Lee Vining",desc:"Classic American diner at the US-395 junction. Great burgers, huge portions.",price:"$ · Lee Vining, CA",link:"https://www.google.com/maps/dir/?api=1&destination=Nicely%27s+Restaurant+Lee+Vining"},
+      {meal:"Dinner",name:"Seasons Restaurant, Lone Pine",desc:"Best sit-down spot in town. Good steaks and local Sierra trout.",price:"$$ · 206 S Main St, Lone Pine",link:"https://www.google.com/maps/dir/?api=1&destination=Seasons+Restaurant+Lone+Pine"},
+      {meal:"Dinner Alt",name:"The Grill at Lone Pine",desc:"Casual American grill with solid burgers and cold drinks after the long drive.",price:"$ · 446 S Main St, Lone Pine",link:"https://www.google.com/maps/dir/?api=1&destination=The+Grill+Lone+Pine+CA"}
+    ],
+    hotel:"Best Western Frontier Motel",address:"1008 S Main St, Lone Pine, CA 93545",drive:"4.5 hrs",notes:"One of the great American road trip days. High desert, ancient lake, famous movie hills — all in one run."},
+
+  { day:8, date:"Jun 24", city:"Death Val.", route:"Into the Heat",
+    coords:[[36.6060,-118.0618],[36.4614,-116.8656],[36.3566,-116.8690],[36.2080,-116.7663]],
+    schedule:[
+      {time:"06:00",event:"Sunrise at Alabama Hills",tip:"First golden light on the formations with Mt Whitney behind. The 20-minute light window is magical.",img:WC+"b/b8/Alabama_Hills_with_Mount_Whitney_in_the_background.jpg/1280px-Alabama_Hills_with_Mount_Whitney_in_the_background.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Alabama+Hills+Lone+Pine"},
+      {time:"09:00",event:"Drive into Death Valley via CA-190",tip:"Fill up with fuel in Lone Pine — options inside the park are extremely limited and very expensive.",img:WC+"9/9d/Panamint_Valley%2C_Death_Valley_National_Park.jpg/1280px-Panamint_Valley%2C_Death_Valley_National_Park.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Furnace+Creek+Death+Valley"},
+      {time:"12:00",event:"Furnace Creek Visitor Centre",tip:"Pick up a map, check the heat advisory board, and fill all water bottles here.",img:WC+"c/ce/Death_valley_-_zabriskie_point_-_070826b.jpg/1280px-Death_valley_-_zabriskie_point_-_070826b.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Furnace+Creek+Visitor+Center+Death+Valley"},
+      {time:"15:00",event:"Badwater Basin Salt Flats",tip:"Walk out onto the salt — lowest point in North America at 86m below sea level. Go early or after 4pm.",img:WC+"a/a9/Badwater_Soda_Lake_Death_Valley.jpg/1280px-Badwater_Soda_Lake_Death_Valley.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Badwater+Basin+Death+Valley"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Alabama Hills Café, Lone Pine",desc:"Local favourite for a hearty breakfast before the desert drive. Opens 7am.",price:"$ · 111 W Post St, Lone Pine",link:"https://www.google.com/maps/dir/?api=1&destination=Alabama+Hills+Cafe+Lone+Pine"},
+      {meal:"Lunch",name:"Furnace Creek Ranch Grill",desc:"Most accessible option inside the park. Sandwiches, salads and cold drinks.",price:"$$ · Furnace Creek",link:"https://www.google.com/maps/dir/?api=1&destination=Furnace+Creek+Ranch+Death+Valley"},
+      {meal:"Lunch Alt",name:"Stovepipe Wells Saloon",desc:"Another in-park option. Basic but cold. The air-con alone is worth the visit at midday.",price:"$ · Stovepipe Wells",link:"https://www.google.com/maps/dir/?api=1&destination=Stovepipe+Wells+Death+Valley"},
+      {meal:"Dinner",name:"The Ranch Dining Room",desc:"Best dinner option in the Valley. American classics in welcome air conditioning.",price:"$$$ · The Ranch at Death Valley",link:"https://www.google.com/maps/dir/?api=1&destination=Ranch+at+Death+Valley+Dining"}
+    ],
+    hotel:"The Ranch at Death Valley",address:"CA-190, Death Valley, CA 92328",drive:"2 hrs",notes:"⚠ Extreme heat — likely 45°C+. Stay hydrated, wear a hat, and limit outdoor exposure 11am–4pm."},
+
+  { day:9, date:"Jun 25", city:"Las Vegas", route:"DV ➔ Vegas",
+    coords:[[36.4614,-116.8656],[36.4073,-116.8676],[36.1699,-115.1398],[36.1147,-115.1728]],
+    schedule:[
+      {time:"07:30",event:"Zabriskie Point — Golden Hour",tip:"Dramatically eroded badland landscape. Arrive early for the best warm light with no crowds.",img:WC+"f/f4/Zabriskie_Point_Panorama_Luca_Galuzzi_2007.jpg/1280px-Zabriskie_Point_Panorama_Luca_Galuzzi_2007.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Zabriskie+Point+Death+Valley"},
+      {time:"09:00",event:"Artist's Drive Scenic Loop",tip:"9-mile one-way loop through colourful volcanic hills. The Artist's Palette viewpoint is unmissable.",img:WC+"7/73/Artists_palette_death_valley.jpg/1280px-Artists_palette_death_valley.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Artist%27s+Drive+Death+Valley"},
+      {time:"16:00",event:"Check-in Rio Hotel & Casino, Las Vegas",tip:"Ask for a high floor with Strip-facing view. Use Valet — easiest with luggage.",img:WC+"6/63/Las_Vegas_Strip_at_night%2C_2012.jpg/1280px-Las_Vegas_Strip_at_night%2C_2012.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Rio+Hotel+Las+Vegas"},
+      {time:"20:30",event:"Bellagio Fountain Show",tip:"Free show every 15–30 minutes. Stand on the sidewalk across the Strip for the best angle.",img:WC+"7/7f/Bellagio_Fountains_Las_Vegas.jpg/1280px-Bellagio_Fountains_Las_Vegas.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Bellagio+Fountains+Las+Vegas"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Light snacks at the hotel",desc:"Eat early and light before leaving Death Valley. Fruit and granola bars.",price:"$ · Self-catered",link:""},
+      {meal:"Lunch",name:"In-N-Out Burger",desc:"Classic California chain. Fresh, cheap and satisfying on a long drive day.",price:"$ · Pahrump / Las Vegas",link:"https://www.google.com/maps/dir/?api=1&destination=In-N-Out+Burger+Las+Vegas"},
+      {meal:"Dinner",name:"Wicked Spoon, The Cosmopolitan",desc:"Upscale buffet with genuine quality. Far above any typical Vegas spread. Go very hungry.",price:"$$$ · The Cosmopolitan",link:"https://www.google.com/maps/dir/?api=1&destination=Wicked+Spoon+The+Cosmopolitan+Las+Vegas"},
+      {meal:"Dinner Alt",name:"Eggslut, The Cosmopolitan",desc:"Gourmet egg sandwiches and comfort food. Affordable for the Strip and always excellent.",price:"$$ · The Cosmopolitan",link:"https://www.google.com/maps/dir/?api=1&destination=Eggslut+The+Cosmopolitan+Las+Vegas"}
+    ],
+    hotel:"Rio Hotel & Casino",address:"3700 W Flamingo Rd, Las Vegas, NV 89103",drive:"2.5 hrs",notes:"Welcome to Vegas! Pace yourself tonight — you have four nights here."},
+
+  { day:10, date:"Jun 26", city:"G. Canyon", route:"Grand Canyon Day Trip",
+    coords:[[36.1699,-115.1398],[36.0544,-112.1401],[35.9852,-112.1272]],
+    schedule:[
+      {time:"06:30",event:"Depart Las Vegas for Grand Canyon South Rim",tip:"Leave by 6:30am to maximise rim time. 2.5hr drive each way via US-93 and AZ-64.",img:WC+"5/5c/GC_from_Mather_Point.jpg/1280px-GC_from_Mather_Point.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Grand+Canyon+South+Rim+Visitor+Center"},
+      {time:"10:00",event:"Mather Point & South Rim Trail",tip:"Walk east along the paved Rim Trail for multiple breathtaking viewpoints. The scale is impossible to comprehend.",img:WC+"a/aa/GrandCanyonNorthRim2.jpg/1280px-GrandCanyonNorthRim2.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Mather+Point+Grand+Canyon"},
+      {time:"13:00",event:"Desert View Watchtower",tip:"Best view of the Colorado River from above. 45 min east of Mather Point — absolutely worth the drive.",img:WC+"6/6b/Desert_View_Watchtower%2C_Grand_Canyon%2C_Arizona_2013.jpg/1280px-Desert_View_Watchtower%2C_Grand_Canyon%2C_Arizona_2013.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Desert+View+Watchtower+Grand+Canyon"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Early snack at the Rio",desc:"Grab coffee and a pastry before the 6:30am departure.",price:"$ · Rio Hotel",link:""},
+      {meal:"Lunch",name:"Bright Angel Fountain & Deli",desc:"Basic but convenient — sandwiches and cold drinks right on the South Rim.",price:"$ · South Rim",link:"https://www.google.com/maps/dir/?api=1&destination=Bright+Angel+Trailhead+Grand+Canyon"},
+      {meal:"Lunch Alt",name:"El Tovar Dining Room",desc:"Historic lodge dining right on the canyon rim edge. Book ahead for the view.",price:"$$$ · El Tovar Hotel, South Rim",link:"https://www.google.com/maps/dir/?api=1&destination=El+Tovar+Hotel+Grand+Canyon"},
+      {meal:"Dinner",name:"Gordon Ramsay Fish & Chips, Vegas",desc:"Fun and affordable by Strip standards. Great fish and chips after a big day out.",price:"$$ · 3545 Las Vegas Blvd S",link:"https://www.google.com/maps/dir/?api=1&destination=Gordon+Ramsay+Fish+and+Chips+Las+Vegas"},
+      {meal:"Dinner Alt",name:"Mon Ami Gabi, Paris Las Vegas",desc:"French brasserie with Strip terrace. Excellent steak frites and people-watching.",price:"$$$ · Paris Las Vegas",link:"https://www.google.com/maps/dir/?api=1&destination=Mon+Ami+Gabi+Paris+Las+Vegas"}
+    ],
+    hotel:"Rio Hotel & Casino",address:"3700 W Flamingo Rd, Las Vegas, NV 89103",drive:"9 hrs RT",notes:"Exhausting but worth every mile. The Grand Canyon's scale is impossible to fully grasp until you're standing on the rim."},
+
+  { day:11, date:"Jun 27", city:"Vegas", route:"Vegas Leisure",
+    coords:[[36.1699,-115.1398],[36.1147,-115.1728],[36.1162,-115.1745]],
+    schedule:[
+      {time:"11:00",event:"Bacchanal Buffet at Caesars Palace",tip:"Best buffet in Vegas — 500+ dishes, unlimited crab legs, oysters, dim sum. Go very hungry.",img:WC+"5/5d/Caesars_Palace_%28June_2010%29.jpg/1280px-Caesars_Palace_%28June_2010%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Bacchanal+Buffet+Caesars+Palace"},
+      {time:"14:30",event:"The LINQ High Roller",tip:"World's largest observation wheel at 167m. Daytime gives great Strip views. Cocktail cabin available.",img:WC+"1/14/High_Roller%2C_Las_Vegas_%28Nevada%2C_USA%29%2C_May_2015.jpg/1280px-High_Roller%2C_Las_Vegas_%28Nevada%2C_USA%29%2C_May_2015.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=High+Roller+Las+Vegas"},
+      {time:"19:00",event:"Cirque du Soleil Show",tip:"'O' at Bellagio or Mystère at Treasure Island — both world-class. Book well in advance.",img:WC+"6/63/Las_Vegas_Strip_at_night%2C_2012.jpg/1280px-Las_Vegas_Strip_at_night%2C_2012.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Bellagio+Las+Vegas"}
+    ],
+    restaurants:[
+      {meal:"Brunch",name:"Bacchanal Buffet, Caesars Palace",desc:"The undisputed best buffet in Vegas. Shellfish, prime rib, dim sum, fresh desserts galore.",price:"$$$ · Caesars Palace",link:"https://www.google.com/maps/dir/?api=1&destination=Bacchanal+Buffet+Caesars+Palace"},
+      {meal:"Snack",name:"Secret Pizza, The Cosmopolitan",desc:"Hidden gem on Level 3. No signs — find the corridor. Great pizza by the slice.",price:"$ · The Cosmopolitan, Level 3",link:"https://www.google.com/maps/dir/?api=1&destination=Secret+Pizza+The+Cosmopolitan+Las+Vegas"},
+      {meal:"Dinner",name:"Eggslut, The Cosmopolitan",desc:"Gourmet egg sandwiches and comfort food. Affordable for the Strip.",price:"$$ · The Cosmopolitan",link:"https://www.google.com/maps/dir/?api=1&destination=Eggslut+The+Cosmopolitan+Las+Vegas"},
+      {meal:"Dinner Alt",name:"Eataly Las Vegas, Park MGM",desc:"Italian food hall — pasta, pizza, antipasto. Great for grazing and sharing.",price:"$$ · Park MGM, Las Vegas",link:"https://www.google.com/maps/dir/?api=1&destination=Eataly+Las+Vegas+Park+MGM"}
+    ],
+    hotel:"Rio Hotel & Casino",address:"3700 W Flamingo Rd, Las Vegas, NV 89103",drive:"Minimal",notes:"Rest day. Explore the Strip at your own pace and recharge before the California finale."},
+
+  { day:12, date:"Jun 28", city:"Vegas", route:"Valley of Fire",
+    coords:[[36.1699,-115.1398],[36.4009,-114.6891],[36.4483,-114.5327]],
+    schedule:[
+      {time:"07:00",event:"Valley of Fire State Park — Fire Wave",tip:"Leave by 7am. The Fire Wave hike (2.4km) must be done before 10am — sweltering after that.",img:WC+"e/e4/Fire_Wave_Valley_of_Fire.jpg/1280px-Fire_Wave_Valley_of_Fire.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Fire+Wave+Trailhead+Valley+of+Fire"},
+      {time:"10:00",event:"Elephant Rock & Rainbow Vista",tip:"Short roadside walks with dramatic red Aztec sandstone formations. Easy stops on the way out.",img:WC+"a/a0/Valley_of_Fire_State_Park%2C_Nevada_1.jpg/1280px-Valley_of_Fire_State_Park%2C_Nevada_1.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Rainbow+Vista+Valley+of+Fire"},
+      {time:"14:00",event:"Rio Hotel Pool Recovery",tip:"Rooftop pool back at the hotel. Bring serious sunscreen — Vegas June sun is relentless.",img:WC+"6/63/Las_Vegas_Strip_at_night%2C_2012.jpg/1280px-Las_Vegas_Strip_at_night%2C_2012.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Rio+All-Suite+Hotel+Las+Vegas"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Grab and go before departure",desc:"Eat light before the early Valley start. Pack trail snacks and extra water.",price:"$ · Rio Hotel",link:""},
+      {meal:"Lunch",name:"In-N-Out Burger, Las Vegas",desc:"Classic California chain on the drive back. Fresh and cheap.",price:"$ · 4888 Dean Martin Dr",link:"https://www.google.com/maps/dir/?api=1&destination=In-N-Out+Burger+Las+Vegas"},
+      {meal:"Dinner",name:"Secret Pizza, The Cosmopolitan",desc:"Level 3 hidden gem. Pizza by the slice — very cheap and very good.",price:"$ · The Cosmopolitan",link:"https://www.google.com/maps/dir/?api=1&destination=Secret+Pizza+The+Cosmopolitan+Las+Vegas"},
+      {meal:"Dinner Alt",name:"Mon Ami Gabi, Paris Las Vegas",desc:"French brasserie with Strip terrace. Steak frites and excellent people-watching.",price:"$$$ · Paris Las Vegas",link:"https://www.google.com/maps/dir/?api=1&destination=Mon+Ami+Gabi+Paris+Las+Vegas"}
+    ],
+    hotel:"Rio Hotel & Casino",address:"3700 W Flamingo Rd, Las Vegas, NV 89103",drive:"1.5 hrs RT",notes:"Mars-like landscape 50 miles from the Strip. Leave early — the rock formations become dangerously hot by 10am."},
+
+  { day:13, date:"Jun 29", city:"L.A.", route:"Vegas ➔ LA",
+    coords:[[36.1699,-115.1398],[35.3733,-117.6289],[34.4208,-119.6982],[34.0195,-118.4912]],
+    schedule:[
+      {time:"08:00",event:"Depart Las Vegas via I-15 South",tip:"Leave before 8:30am. Sunday I-15 clears fast after Barstow. Keep the Avis tank topped up.",img:WC+"2/27/I-15_in_Cajon_Pass.jpg/1280px-I-15_in_Cajon_Pass.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Santa+Monica+California"},
+      {time:"16:00",event:"Check-in Hotel Carmel, Santa Monica",tip:"Self-park in the adjacent lot. Ask for a street-facing room if available.",img:WC+"b/b8/Santa_Monica_Beach_Aerial.jpg/1280px-Santa_Monica_Beach_Aerial.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Hotel+Carmel+Santa+Monica"},
+      {time:"18:00",event:"Griffith Observatory at Sunset",tip:"Best free view of the Hollywood Sign. The LA basin panorama at dusk is stunning.",img:WC+"0/0b/Griffith_Observatory_from_the_air.jpg/1280px-Griffith_Observatory_from_the_air.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Griffith+Observatory+Los+Angeles"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Grab and go at Rio checkout",desc:"Early start — quick coffee and pastry before departure.",price:"$ · Rio Hotel",link:""},
+      {meal:"Lunch",name:"Peggy Sue's 50s Diner, near Barstow",desc:"Retro roadside diner on the I-15. Great burgers and thick milkshakes.",price:"$ · Yermo, CA",link:"https://www.google.com/maps/dir/?api=1&destination=Peggy+Sue%27s+Diner+Yermo+CA"},
+      {meal:"Dinner",name:"Boa Steakhouse, Santa Monica",desc:"Excellent steakhouse for a celebratory arrival dinner. You've driven across the American West!",price:"$$$ · 101 Santa Monica Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=BOA+Steakhouse+Santa+Monica"},
+      {meal:"Dinner Alt",name:"Cassia, Santa Monica",desc:"Southeast Asian brasserie — one of LA's most acclaimed restaurants.",price:"$$$ · 1314 7th St, Santa Monica",link:"https://www.google.com/maps/dir/?api=1&destination=Cassia+Restaurant+Santa+Monica"}
+    ],
+    hotel:"Hotel Carmel",address:"201 Broadway, Santa Monica, CA 90401",drive:"4 hrs",notes:"Big city arrival. Santa Monica is a lovely, walkable base for the final chapter of the trip."},
+
+  { day:14, date:"Jun 30", city:"Sta Monica", route:"Beach Day",
+    coords:[[34.0195,-118.4912],[33.9995,-118.4730],[33.9850,-118.4695]],
+    schedule:[
+      {time:"10:00",event:"Santa Monica Pier",tip:"Pacific Park Ferris Wheel is the iconic shot. Walk the pier before it gets crowded.",img:WC+"7/7e/Santa_Monica_Pier_and_Beach.jpg/1280px-Santa_Monica_Pier_and_Beach.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Santa+Monica+Pier"},
+      {time:"14:00",event:"Venice Beach Boardwalk",tip:"Rent bikes and cruise south toward Marina del Rey along the oceanfront path.",img:WC+"c/c5/Venice_Beach_Boardwalk_2012.jpg/1280px-Venice_Beach_Boardwalk_2012.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Venice+Beach+Boardwalk"},
+      {time:"17:00",event:"Abbot Kinney Boulevard",tip:"Venice's hippest street — boutiques, galleries and cafés. Great early-evening stroll.",img:WC+"d/d1/Abbot_Kinney_Boulevard_in_Venice%2C_CA.jpg/1280px-Abbot_Kinney_Boulevard_in_Venice%2C_CA.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Abbot+Kinney+Boulevard+Venice"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Huckleberry Café",desc:"Santa Monica institution. Outstanding baked goods, avocado toast and great coffee.",price:"$$ · 1014 Wilshire Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=Huckleberry+Cafe+Santa+Monica"},
+      {meal:"Breakfast Alt",name:"Gjusta Deli, Venice",desc:"Neighbourhood Venice deli. Incredible bread, smoked fish and grain bowls.",price:"$$ · 320 Sunset Ave, Venice",link:"https://www.google.com/maps/dir/?api=1&destination=Gjusta+Venice+California"},
+      {meal:"Lunch",name:"Esters Wine Shop & Bar",desc:"Wine, cheese and small plates on Abbot Kinney. Perfect relaxed beachside lunch.",price:"$$ · 1314 Abbot Kinney Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=Esters+Wine+Shop+Abbot+Kinney+Venice"},
+      {meal:"Lunch Alt",name:"Gjelina, Abbot Kinney",desc:"Iconic Venice spot — wood-fired vegetables, pizzas and small plates.",price:"$$$ · 1429 Abbot Kinney Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=Gjelina+Abbot+Kinney+Venice"},
+      {meal:"Dinner",name:"Felix Trattoria, Abbot Kinney",desc:"Celebrated Italian with handmade pasta. One of the best in LA.",price:"$$$ · 1023 Abbot Kinney Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=Felix+Trattoria+Venice+California"},
+      {meal:"Dinner Alt",name:"Scopa Italian Roots, Venice",desc:"Rustic Italian in a warehouse space. Great cocktails and wood-fired dishes.",price:"$$$ · 2905 Washington Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=Scopa+Italian+Roots+Venice"}
+    ],
+    hotel:"Hotel Carmel",address:"201 Broadway, Santa Monica, CA 90401",drive:"Local",notes:"Pure California beach day. Soak up the Pacific sunshine — weather should be perfect."},
+
+  { day:15, date:"Jul 1", city:"L.A.", route:"Universal Studios",
+    coords:[[34.0195,-118.4912],[34.1381,-118.3534],[33.9416,-118.4085]],
+    schedule:[
+      {time:"09:00",event:"Universal Studios Hollywood",tip:"Take the Studio Backlot Tour first — it books up early. Wizarding World of Harry Potter is next.",img:WC+"f/f7/Universal_Studios_Hollywood_%28cropped%29.jpg/1280px-Universal_Studios_Hollywood_%28cropped%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Universal+Studios+Hollywood"},
+      {time:"16:00",event:"Universal CityWalk",tip:"Outdoor entertainment promenade outside the park. Good for a late snack or souvenir shopping.",img:WC+"e/ea/Universal_CityWalk_Hollywood.jpg/1280px-Universal_CityWalk_Hollywood.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Universal+CityWalk+Hollywood"},
+      {time:"18:00",event:"Return Avis Car at LAX",tip:"Avis return is clearly signposted from Airport Blvd. Allow 45 mins for the return process.",img:WC+"5/54/LAX_logo.svg/400px-LAX_logo.svg.png",link:"https://www.google.com/maps/dir/?api=1&destination=Avis+Rent+A+Car+LAX"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Hotel café quick bite",desc:"Light breakfast before the early Universal start.",price:"$ · Hotel Carmel",link:""},
+      {meal:"Lunch",name:"Three Broomsticks, Wizarding World",desc:"Harry Potter themed restaurant inside Universal. Butterbeer is mandatory.",price:"$$ · Universal Studios Hollywood",link:"https://www.google.com/maps/dir/?api=1&destination=Universal+Studios+Hollywood"},
+      {meal:"Lunch Alt",name:"Voodoo Doughnut, CityWalk",desc:"Famous eccentric doughnut chain. Great for a mid-park sugar hit.",price:"$ · Universal CityWalk",link:"https://www.google.com/maps/dir/?api=1&destination=Voodoo+Doughnut+Universal+CityWalk"},
+      {meal:"Dinner",name:"Rocco's Tavern, Santa Monica",desc:"Neighbourhood sports bar. Good wings, burgers and cold beers. Lively crowd.",price:"$$ · 2901 Ocean Park Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=Rocco%27s+Tavern+Santa+Monica"},
+      {meal:"Dinner Alt",name:"Tar & Roses, Santa Monica",desc:"Wood-fired small plates. Elegant and cosy — perfect farewell-to-the-Avis dinner.",price:"$$$ · 602 Santa Monica Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=Tar+and+Roses+Santa+Monica"}
+    ],
+    hotel:"Hotel Carmel",address:"201 Broadway, Santa Monica, CA 90401",drive:"Local + LAX",notes:"Farewell to the Avis! You'll have covered 1,800+ miles across California, Nevada and Arizona."},
+
+  { day:16, date:"Jul 2", city:"SoFi", route:"⚽ Match Day",
+    coords:[[34.0195,-118.4912],[33.9535,-118.3390]],
+    schedule:[
+      {time:"09:30",event:"Match Day Breakfast & Prep",tip:"Wear layers — SoFi Stadium has strong AC inside. Bring sunscreen for the open concourse.",img:WC+"9/9e/Sofi_Stadium_2021_%28cropped%29.jpg/1280px-Sofi_Stadium_2021_%28cropped%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=SoFi+Stadium+Inglewood"},
+      {time:"10:30",event:"Metro to SoFi Stadium",tip:"Expo Line to Crenshaw, then Crenshaw/K Line to SoFi. Avoids all traffic and parking stress.",img:WC+"9/9e/Sofi_Stadium_2021_%28cropped%29.jpg/1280px-Sofi_Stadium_2021_%28cropped%29.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=SoFi+Stadium+Inglewood"},
+      {time:"12:00",event:"FIFA World Cup Match at SoFi Stadium",tip:"Arrive 90 mins before kickoff. The atmosphere will be electric — the trip highlight.",img:WC+"1/12/FIFA_World_Cup_2026_logo.svg/800px-FIFA_World_Cup_2026_logo.svg.png",link:"https://www.google.com/maps/dir/?api=1&destination=SoFi+Stadium+Inglewood"},
+      {time:"17:00",event:"Post-Match on the Promenade",tip:"Head back to Santa Monica — Third Street Promenade will be buzzing with fans.",img:WC+"7/7e/Santa_Monica_Pier_and_Beach.jpg/1280px-Santa_Monica_Pier_and_Beach.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Third+Street+Promenade+Santa+Monica"}
+    ],
+    restaurants:[
+      {meal:"Breakfast",name:"Huckleberry Café",desc:"Fuel up properly for match day. Best breakfast in Santa Monica.",price:"$$ · 1014 Wilshire Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=Huckleberry+Cafe+Santa+Monica"},
+      {meal:"At Stadium",name:"SoFi Stadium Concessions",desc:"Wide variety inside — grab food early before kickoff to avoid long queues.",price:"$$ · SoFi Stadium",link:"https://www.google.com/maps/dir/?api=1&destination=SoFi+Stadium+Inglewood"},
+      {meal:"Dinner",name:"The Misfit Restaurant + Bar",desc:"Great post-match celebration spot on the Promenade. Cocktails and shareable plates.",price:"$$$ · 225 Santa Monica Pl",link:"https://www.google.com/maps/dir/?api=1&destination=The+Misfit+Restaurant+Santa+Monica"},
+      {meal:"Dinner Alt",name:"Lunetta, Santa Monica",desc:"Vibrant Italian-American spot. Great cocktails for group celebrations.",price:"$$$ · 1819 Ocean Ave",link:"https://www.google.com/maps/dir/?api=1&destination=Lunetta+Restaurant+Santa+Monica"}
+    ],
+    hotel:"Hotel Carmel",address:"201 Broadway, Santa Monica, CA 90401",drive:"Metro",notes:"🏆 The trip highlight. FIFA World Cup at SoFi Stadium. What a way to cap off the West Coast adventure."},
+
+  { day:17, date:"Jul 3", city:"LAX", route:"Departure",
+    coords:[[34.0195,-118.4912],[33.9416,-118.4085]],
+    schedule:[
+      {time:"11:00",event:"Final Brunch at Huckleberry Café",tip:"Your last LA meal. Order the lemon ricotta pancakes. Take your time — no rush until 4pm.",img:WC+"7/7e/Santa_Monica_Pier_and_Beach.jpg/1280px-Santa_Monica_Pier_and_Beach.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Huckleberry+Bakery+%26+Cafe+Santa+Monica"},
+      {time:"14:00",event:"Santa Monica Beach — Final Walk",tip:"One last stroll on the Pacific sand. Breathe in the ocean air. You've earned this moment.",img:WC+"b/b8/Santa_Monica_Beach_Aerial.jpg/1280px-Santa_Monica_Beach_Aerial.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=Santa+Monica+State+Beach"},
+      {time:"18:00",event:"Uber to LAX International Terminal",tip:"CX 881 departs 23:55. Allow 4 hours for check-in and security. Confirm terminal in advance.",img:WC+"a/af/LAX_Airport_at_Night.jpg/1280px-LAX_Airport_at_Night.jpg",link:"https://www.google.com/maps/dir/?api=1&destination=LAX+International+Terminal"}
+    ],
+    restaurants:[
+      {meal:"Brunch",name:"Huckleberry Café",desc:"The perfect final meal. Lemon ricotta pancakes are legendary. Don't skip dessert.",price:"$$ · 1014 Wilshire Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=Huckleberry+Cafe+Santa+Monica"},
+      {meal:"Brunch Alt",name:"Milo & Olive, Santa Monica",desc:"Neighbourhood bakery and wine bar. Outstanding focaccia, pastries and salads.",price:"$$ · 2723 Wilshire Blvd",link:"https://www.google.com/maps/dir/?api=1&destination=Milo+and+Olive+Santa+Monica"},
+      {meal:"Airport",name:"Rock & Brews, LAX",desc:"Decent food airside. Cold beer and burgers before the long Cathay Pacific flight.",price:"$$ · LAX International Terminal",link:"https://www.google.com/maps/dir/?api=1&destination=LAX+International+Terminal"},
+      {meal:"Airport Alt",name:"Border Grill, LAX",desc:"Mary Sue Milliken's California-Mexican kitchen — one of the better airside options.",price:"$$ · LAX Tom Bradley International",link:"https://www.google.com/maps/dir/?api=1&destination=LAX+Tom+Bradley+International+Terminal"}
+    ],
+    hotel:"N/A — CX 881 departs 23:55",address:"World Way, Los Angeles, CA 90045",drive:"30 min",notes:"Safe flight home. 17 days · 1,800+ miles · 8 cities · 1 World Cup match. What a trip."}
+];
+
+function mealClass(meal) {
+  const m = meal.toLowerCase();
+  if (m.includes('breakfast') || m.includes('brunch')) return 'mb-breakfast';
+  if (m.includes('lunch')) return 'mb-lunch';
+  if (m.includes('dinner')) return 'mb-dinner';
+  if (m.includes('drink')) return 'mb-drinks';
+  if (m.includes('snack')) return 'mb-snack';
+  if (m.includes('airport')) return 'mb-airport';
+  if (m.includes('skip')) return 'mb-skip';
+  return 'mb-other';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  function calcCd() {
+    const dep = new Date('2026-06-17T00:00:00');
+    const diff = Math.ceil((dep - new Date()) / 86400000);
+    const v = diff > 0 ? diff : (diff === 0 ? 'Today!' : '✈');
+    document.getElementById('deskCd').textContent = v;
+    document.getElementById('mobCd').textContent = v;
+  }
+  calcCd();
+
+  const map = L.map('map', { zoomControl: false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution:'&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> &copy; <a href="https://carto.com/">CartoDB</a>', maxZoom:19
+  }).addTo(map);
+  L.control.zoom({ position:'bottomright' }).addTo(map);
+
+  let activeLayers = [];
+  function clearMap() { activeLayers.forEach(l => map.removeLayer(l)); activeLayers = []; }
+  function addToMap(l) { l.addTo(map); activeLayers.push(l); return l; }
+
+  const numIcon = n => L.divIcon({
+    className:'',
+    html:`<div style="width:22px;height:22px;background:#1B2A4A;border:2.5px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;font-family:sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3)">${n}</div>`,
+    iconSize:[22,22],iconAnchor:[11,11]
+  });
+  const dotIcon = L.divIcon({
+    className:'',
+    html:`<div style="width:7px;height:7px;background:#1B2A4A;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.25)"></div>`,
+    iconSize:[7,7],iconAnchor:[3.5,3.5]
+  });
+
+  function plotDay(d) {
+    clearMap();
+    if (!d.coords || !d.coords.length) return;
+    addToMap(L.polyline(d.coords, { color:'#C8973A', weight:2.5, opacity:.85, dashArray:'7,5' }));
+    d.coords.forEach((c,i) => {
+      const m = L.marker(c, { icon:numIcon(i+1) });
+      const label = d.schedule[i] ? d.schedule[i].event : d.city;
+      m.bindPopup(`<span style="font-family:sans-serif;font-size:12px;font-weight:600;color:#1B2A4A">${label}</span>`);
+      addToMap(m);
+    });
+    map.fitBounds(L.latLngBounds(d.coords), { padding:[40,40] });
+  }
+
+  function plotOverview() {
+    clearMap();
+    const all = itinerary.flatMap(d => d.coords);
+    addToMap(L.polyline(all, { color:'#C8973A', weight:2, opacity:.4, dashArray:'5,6' }));
+    const seen = new Set();
+    itinerary.forEach(d => {
+      const k = d.coords[0].join(',');
+      if (!seen.has(k)) {
+        seen.add(k);
+        addToMap(L.marker(d.coords[0], { icon:dotIcon }).bindTooltip(d.city, { permanent:false, direction:'top' }));
+      }
+    });
+    map.fitBounds(L.latLngBounds(all), { padding:[24,24] });
+  }
+
+  const sbNav = document.getElementById('sbNav');
+  const mobStrip = document.getElementById('mobStrip');
+  itinerary.forEach(d => {
+    const card = document.createElement('div');
+    card.className = 'day-card'; card.dataset.day = d.day;
+    card.innerHTML = `<span class="dc-num">D${d.day}</span><div class="dc-dot"></div><div class="dc-info"><div class="dc-date">${d.date}</div><div class="dc-city">${d.city}</div><div class="dc-route">${d.route}</div></div>`;
+    card.addEventListener('click', () => selectDay(d.day));
+    sbNav.appendChild(card);
+    const mc = document.createElement('div');
+    mc.className = 'mob-card'; mc.dataset.md = d.day;
+    mc.innerHTML = `<div class="mc-num">D${d.day}</div><div class="mc-city">${d.city}</div><div class="mc-date">${d.date}</div>`;
+    mc.addEventListener('click', () => selectDay(d.day));
+    mobStrip.appendChild(mc);
+  });
+
+  function setActive(n) {
+    document.querySelectorAll('.day-card').forEach(c => c.classList.toggle('active', +c.dataset.day === n));
+    document.querySelectorAll('.mob-card').forEach(c => c.classList.toggle('active', +c.dataset.md === n));
+    const am = document.querySelector('.mob-card.active');
+    if (am) am.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
+  }
+
+  function renderOverview() {
+    setActive(0);
+    document.getElementById('topHead').textContent = 'Trip Overview';
+    document.getElementById('topMeta').textContent = 'Jun 17 – Jul 3 · SFO to LAX · 17 days';
+    document.getElementById('mapPill').textContent = 'Full Route';
+    plotOverview();
+    const daysLeft = Math.ceil((new Date('2026-06-17') - new Date()) / 86400000);
+    document.getElementById('details').innerHTML = `
+      <div class="ov-grid">
+        <div class="stat-card"><div class="stat-label">Days to Departure</div><div class="stat-val">${daysLeft > 0 ? daysLeft : '—'}</div><div class="stat-sub">${daysLeft > 0 ? 'from today' : 'in progress'}</div></div>
+        <div class="stat-card"><div class="stat-label">Trip Duration</div><div class="stat-val">17</div><div class="stat-sub">Jun 17 – Jul 3</div></div>
+        <div class="stat-card"><div class="stat-label">Cities</div><div class="stat-val">8</div><div class="stat-sub">SF · Yosemite · Vegas…</div></div>
+      </div>
+      <div class="sec-head">Flights</div>
+      <div class="flight-grid">
+        <div class="flight-card"><div class="fc-num">CX 872 · Outbound</div><div class="fc-route">HKG ➔ SFO</div><div class="fc-times">Dep 00:30 · Arr 23:45 (Jun 17)</div></div>
+        <div class="flight-card"><div class="fc-num">CX 881 · Return</div><div class="fc-route">LAX ➔ HKG</div><div class="fc-times">Dep 23:55 (Jul 3) · Overnight</div></div>
+      </div>
+      <div class="sec-head" style="margin-top:14px">Route</div>
+      <div class="route-chips">
+        <span class="chip chip-dark">SFO</span><span class="arrow-sep">→</span>
+        <span class="chip chip-light">SF (3n)</span><span class="arrow-sep">→</span>
+        <span class="chip chip-dark">Yosemite (3n)</span><span class="arrow-sep">→</span>
+        <span class="chip chip-light">Lone Pine</span><span class="arrow-sep">→</span>
+        <span class="chip chip-dark">Death Valley</span><span class="arrow-sep">→</span>
+        <span class="chip chip-light">Las Vegas (4n)</span><span class="arrow-sep">→</span>
+        <span class="chip chip-dark">Santa Monica (4n)</span><span class="arrow-sep">→</span>
+        <span class="chip chip-light">LAX ✈</span>
+      </div>
+      <div class="sec-head" style="margin-top:14px">Key Reminders</div>
+      <div class="day-notes"><span class="notes-ico">📋</span><span>Avis rental from SFO · returned at LAX Day 15. &nbsp;Alcatraz ferry 19 Jun 11:00 — be at Pier 33 by 10:45. &nbsp;Book Cirque du Soleil in advance. &nbsp;Death Valley extreme heat Day 8. &nbsp;World Cup at SoFi Jul 2 — take the Metro. &nbsp;CX 881 departs LAX 23:55 Jul 3.</span></div>`;
+  }
+
+  function selectDay(dayNum) {
+    const d = itinerary[dayNum - 1];
+    setActive(dayNum);
+    document.getElementById('topHead').textContent = `Day ${d.day} · ${d.city}`;
+    document.getElementById('topMeta').textContent = `${d.date} · ${d.route}`;
+    document.getElementById('mapPill').textContent = `Day ${d.day}`;
+    plotDay(d);
+
+    // Schedule — horizontal thumbnail cards
+    const schedHTML = d.schedule.map(s => {
+      const navBtn = s.link ? `<a href="${s.link}" target="_blank" rel="noopener" class="tl-btn btn-nav-plain">↗ Navigate</a>` : '';
+      const thumb = s.img
+        ? `<div class="act-thumb"><img src="${s.img}" alt="${s.event}" loading="lazy" onerror="this.style.display='none'"></div>`
+        : `<div class="act-thumb" style="display:flex;align-items:center;justify-content:center"><span style="font-size:20px;opacity:.2">📍</span></div>`;
+      return `<div class="tl-row">
+        <div class="tl-left"><div class="tl-time">${s.time}</div><div class="tl-spine"><div class="tl-dot"></div><div class="tl-line"></div></div></div>
+        <div class="tl-body"><div class="act-card">${thumb}<div class="act-content"><div class="act-event">${s.event}</div><div class="act-tip">${s.tip}</div><div class="act-actions">${navBtn}</div></div></div></div>
+      </div>`;
+    }).join('');
+
+    // Restaurants — compact rows with coloured meal badges
+    const restHTML = d.restaurants.map(r => {
+      const mc = mealClass(r.meal);
+      const parts = r.price ? r.price.split('·') : [];
+      const priceStr = parts[0] ? parts[0].trim() : '';
+      const addrStr = parts.slice(1).join('·').trim();
+      const navBtn = r.link ? `<a href="${r.link}" target="_blank" rel="noopener" class="btn-rest-nav">↗ Map</a>` : '';
+      return `<div class="rest-card">
+        <span class="meal-badge ${mc}">${r.meal}</span>
+        <div class="rest-info"><div class="rest-name">${r.name}</div><div class="rest-desc">${r.desc}${addrStr ? ` <span style="opacity:.6">· ${addrStr}</span>` : ''}</div></div>
+        <div class="rest-right">${priceStr ? `<span class="rest-price">${priceStr}</span>` : ''}${navBtn}</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('details').innerHTML = `
+      <div class="sec-head">Schedule</div>
+      <div class="timeline">${schedHTML}</div>
+      <div class="sec-head">🍽 Where to Eat</div>
+      <div class="rest-grid">${restHTML}</div>
+      <div class="sec-head">Tonight's Stay</div>
+      <div class="hotel-card">
+        <div class="hotel-ico">🏨</div>
+        <div><div class="hotel-name">${d.hotel}</div><div class="hotel-addr">${d.address}</div><div class="hotel-pills"><span class="h-pill pill-drive">🚗 ${d.drive}</span></div></div>
+      </div>
+      <div class="day-notes"><span class="notes-ico">💡</span><span>${d.notes}</span></div>`;
+  }
+
+  document.getElementById('sbTitle').addEventListener('click', renderOverview);
+  renderOverview();
+});
+</script>
+</body>
+</html>
